@@ -1,0 +1,55 @@
+name: Authentication tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+      - name: Check migrations
+        env:
+          SECRET_KEY: ci-only-not-a-real-secret-000000000000000000000000
+          DATABASE_URL: sqlite:///./migration-check.db
+        run: |
+          alembic upgrade head
+          alembic check
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dashboard
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: learning_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dashboard -d learning_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://dashboard:ci-test-only@localhost:5432/learning_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+      - name: Check PostgreSQL migrations
+        env:
+          SECRET_KEY: ci-only-not-a-real-secret-000000000000000000000000
+          DATABASE_URL: postgresql+psycopg://dashboard:ci-test-only@localhost:5432/learning_test
+        run: |
+          alembic upgrade head
+          alembic check
