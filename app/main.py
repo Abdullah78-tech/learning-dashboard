@@ -47,7 +47,8 @@ def create_app(settings=None):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['Referrer-Policy'] = 'no-referrer'
-        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+        # Chromium applies form-action to redirects from the Google login POST.
+        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com"
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
         if not request.url.path.startswith('/static/'):
             response.headers['Cache-Control'] = 'no-store'
