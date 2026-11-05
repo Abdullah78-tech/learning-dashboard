@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlparse
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     database_url: str = 'sqlite:///./learning.db'
     google_client_id: str = ''
     google_client_secret: str = ''
+    facebook_app_id: str = ''
+    facebook_app_secret: str = ''
+    facebook_api_version: str = Field(default='v22.0', pattern=r'^v[0-9]+\.[0-9]+$')
     smtp_host: str = 'smtp.gmail.com'
     smtp_port: int = 587
     smtp_username: str = ''
@@ -37,6 +40,10 @@ class Settings(BaseSettings):
     @property
     def google_enabled(self):
         return bool(self.google_client_id and self.google_client_secret)
+
+    @property
+    def facebook_enabled(self):
+        return bool(self.facebook_app_id.strip() and self.facebook_app_secret.strip())
 
     @property
     def mail_enabled(self):

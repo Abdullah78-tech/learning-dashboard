@@ -14,6 +14,9 @@ from .auth import router, DB, redirect
 from .security import current_user
 from .views import render
 from .mailer import send_otp
+from .facebook import router as facebook_router
+from .models import Identity
+from sqlalchemy import select
 
 
 def create_app(settings=None):
@@ -36,6 +39,15 @@ def create_app(settings=None):
                        client_secret=settings.google_client_secret,
                        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
                        client_kwargs={'scope': 'openid email profile', 'timeout': 15})
+    if settings.facebook_enabled:
+        version = settings.facebook_api_version
+        oauth.register(name='facebook', client_id=settings.facebook_app_id,
+                       client_secret=settings.facebook_app_secret,
+                       authorize_url=f'https://www.facebook.com/{version}/dialog/oauth',
+                       access_token_url=f'https://graph.facebook.com/{version}/oauth/access_token',
+                       api_base_url=f'https://graph.facebook.com/{version}/',
+                       client_kwargs={'scope': 'public_profile,email',
+                                      'token_endpoint_auth_method': 'client_secret_post', 'timeout': 15})
     app.state.oauth = oauth
     app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, session_cookie='ld_flow',
                        same_site='lax', https_only=settings.secure_cookies, max_age=3600)
@@ -48,7 +60,7 @@ def create_app(settings=None):
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['Referrer-Policy'] = 'no-referrer'
         # Chromium applies form-action to redirects from the Google login POST.
-        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com"
+        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com https://www.facebook.com"
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
         if not request.url.path.startswith('/static/'):
             response.headers['Cache-Control'] = 'no-store'
@@ -66,13 +78,15 @@ def create_app(settings=None):
 
     app.mount('/static', StaticFiles(directory=str(Path(__file__).parent / 'static')), name='static')
     app.include_router(router)
+    app.include_router(facebook_router)
 
     @app.get('/dashboard', response_class=HTMLResponse)
     def dashboard(request: Request, db: DB):
         user = current_user(request, db)
         if not user:
             return redirect('/signin')
-        return render(request, 'dashboard.html', user=user)
+        provider = db.scalar(select(Identity.provider).where(Identity.user_id == user.id))
+        return render(request, 'dashboard.html', user=user, login_method=provider or 'password')
 
     @app.get('/health')
     def health():

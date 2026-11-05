@@ -180,7 +180,7 @@ def signin(request: Request, db: DB, csrf: Annotated[str, Form()],
     user = db.scalar(select(User).where(User.email == normalized))
     valid = password_valid(user.password_hash if user else None, password)
     if not user or not user.password_hash or not valid:
-        return auth_page(request, 'signin', 'Email or password is incorrect. If you registered with Google, continue with Google.', 400, email=email)
+        return auth_page(request, 'signin', 'Email or password is incorrect. If you registered with Google or Facebook, use that sign-in button.', 400, email=email)
     return establish_login(request, db, user.id, redirect('/dashboard'))
 
 

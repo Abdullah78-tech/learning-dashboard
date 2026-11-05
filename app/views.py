@@ -10,6 +10,7 @@ def render(request, name, status_code=200, **context):
     return templates.TemplateResponse(request=request, name=name, context={
         'app_name': settings.app_name,
         'google_enabled': settings.google_enabled,
+        'facebook_enabled': settings.facebook_enabled,
         'csrf': csrf_token(request),
         **context,
     }, status_code=status_code)

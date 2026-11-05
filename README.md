@@ -7,10 +7,11 @@ A Python authentication starter with a blue-and-white dashboard inspired by the 
 - Email signup → six-digit email OTP → verified account → dashboard.
 - Email/password sign-in without an OTP.
 - Google account selection and login using OAuth/OpenID Connect, after local credentials are configured.
+- Facebook login using a server-side OAuth authorization-code flow, after Meta app credentials are configured.
 - Protected dashboard, real profile details and sign-out with server-side session revocation.
 - Responsive dashboard navigation, mobile menu, password visibility toggle and demo feedback.
 
-Facebook appears on both auth pages but is **disabled**. Meta credentials and the Facebook backend integration are not implemented in this version. Password reset, account linking, profile editing and dashboard business features are also future work.
+Google and Facebook buttons appear on both auth pages and enable when their credentials are configured. Password reset, account linking, profile editing and dashboard business features remain future work.
 
 ## Run on Windows (PowerShell)
 
@@ -74,6 +75,29 @@ Keep the Google app in Testing during development. Add your personal account to 
 
 Official setup: https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid
 
+## Facebook login (Meta app setup)
+
+1. Open https://developers.facebook.com/apps/ and create an app for Facebook Login/user authentication. Use the ordinary Facebook Login use case for a consumer website, not a business-management/ads integration. Dashboard wording can vary.
+2. Keep it in Development/testing mode. Use your app administrator/developer account or an accepted tester role for testing; enabling the code does not make Meta grant access to every Facebook user.
+3. In Facebook Login settings, enable Client OAuth Login and Web OAuth Login where shown. Configure the website platform/site URL for your development site.
+4. The callback used by this project is **`http://localhost:8000/auth/facebook/callback`**. Configure the exact callback using Meta's redirect settings. Localhost handling depends on development mode and the current dashboard. If the dashboard says localhost redirects are automatically allowed, do not force a rejected entry. If it requires HTTPS, use a properly configured HTTPS development origin and update `BASE_URL`, cookies and both providers' callbacks consistently; do not switch the app to Live merely to test.
+5. Enable/request `public_profile` and `email` in the Facebook Login use case. The user must share an email for a new account; Facebook may not return an email even when requested.
+6. Copy the App ID and App Secret from the app's settings privately into your local `.env`:
+
+```dotenv
+FACEBOOK_APP_ID=your-meta-app-id
+FACEBOOK_APP_SECRET=your-meta-app-secret
+FACEBOOK_API_VERSION=v22.0
+```
+
+The API version is configurable. `v22.0` is the implementation default, not a claim that it is the latest. Use a supported version shown in your Meta app dashboard when appropriate. Restart the Python server and open `http://localhost:8000/signin` to test. Meta controls the login/consent UI and may reuse the browser's existing Facebook session; it does not offer Google's account picker behavior.
+
+The app sends users to Facebook, validates OAuth state, exchanges the code on the backend, and fetches `id,name,email` with an app-secret proof. Access tokens are neither stored in browser cookies nor persisted in the database. Returning users are matched by their app-scoped Facebook ID. An email already used by another account is never automatically linked. If Facebook omits email, the user receives an explanation and can use email signup instead. Facebook email is not presented as independently OTP-verified.
+
+Live public use needs the Meta publishing requirements shown for your app, including suitable public privacy and data-deletion information and any required permissions review. These public-launch requirements and pages are outside this local learning setup. Do not paste credentials into screenshots, source code or chat.
+
+Provider reference: https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow/
+
 ## Send OTPs from your personal email
 
 If your mailbox is **Gmail**:
@@ -106,6 +130,7 @@ Official Gmail help: https://support.google.com/mail/answer/185833
 | --- | --- |
 | `app/main.py` | Application factory, protected dashboard and response headers |
 | `app/auth.py` | Signup, verification, resend, sign-in, logout and Google routes |
+| `app/facebook.py` | Facebook OAuth routes and identity handling |
 | `app/config.py` | Validated environment settings |
 | `app/models.py`, `app/db.py` | Users, identities, pending signups, sessions, rate limits |
 | `app/security.py` | Password hashing, CSRF, session and rate-limit helpers |
@@ -121,7 +146,7 @@ Official Gmail help: https://support.google.com/mail/answer/185833
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Tests use temporary SQLite databases and a fake in-memory mail sender. They do not send real emails. OAuth tests cover identity mapping, redirect parameters, invalid state and simulated callback handling; live Google login and real SMTP delivery still need your local credentials and a manual end-to-end check. GitHub Actions also exercises PostgreSQL.
+Tests use temporary SQLite databases and a fake in-memory mail sender. They do not send real emails. OAuth tests cover identity mapping, redirect parameters, invalid state and simulated callback handling; live Google/Facebook login and real SMTP delivery still need your local credentials and a manual end-to-end check. GitHub Actions also exercises PostgreSQL.
 
 ## Security and scope
 
@@ -140,6 +165,10 @@ This is a learning foundation, not a claim of production readiness. Before publi
 - **Code not received:** verify SMTP settings, check spam, and use an App Password for Gmail.
 - **Too many attempts:** wait for the displayed limit window; don't repeatedly resend.
 - **Email already exists with Google:** use the original sign-in method. Automatic account linking is intentionally unavailable.
-- **Facebook button disabled:** integration is pending; this is not a credential error.
+- **Facebook button disabled:** fill `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` in `.env`, then restart.
+- **Facebook app unavailable:** check app mode, accepted tester/admin roles, enabled login use case and permissions.
+- **Facebook missing email:** allow email access if offered, or use email signup.
+- **Facebook redirect blocked:** verify the exact callback and that your local code includes the Facebook CSP allowlist.
+- **Profile says Facebook connected:** this confirms provider login, not separate email OTP verification.
 
 GitHub stores the source code. It does not run the Python backend through GitHub Pages. Local testing requires no paid hosting or domain.
