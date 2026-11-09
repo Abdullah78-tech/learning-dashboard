@@ -1,0 +1,1 @@
+export default function App() { return <main style={{fontFamily:"system-ui",maxWidth:720,margin:"4rem auto",padding:"1rem"}}><h1>Learning Dashboard</h1><p>React scaffold ready. Existing Python authentication remains operational during migration.</p></main>; }
