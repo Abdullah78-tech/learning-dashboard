@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from .models import LoginSession, RateBucket, PendingSignup, now
+from ..models import LoginSession, RateBucket, PendingSignup, now
 
 hasher = PasswordHasher()
 DUMMY_HASH = hasher.hash(secrets.token_urlsafe(32))
@@ -58,7 +58,7 @@ def rate_limit(db, settings, label, identity, limit, seconds):
 
 
 def current_user(request, db):
-    from .models import User
+    from ..models import User
     raw = request.cookies.get('ld_auth')
     if not raw:
         return None
